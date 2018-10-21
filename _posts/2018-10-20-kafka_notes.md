@@ -48,9 +48,9 @@ brokers接受字节数组，所以要把发送的对象序列化为字节。
 - `acks == 1`: 生产者等待收到分区首领的响应，如果发生错误，生产者可以重试，但是如果发生首领重新选举且是一个没有收到消息的broker成为新首领，消息还是会丢失。采用同步发送模式，吞吐会比较受影响；采用异步发送模式，延迟问题可以得到缓解，但是还是会受到发送中消息数量的限制（`max.in.flight.requests.per.connection`、`buffer.memory`）
 
 ## 参考文章
-[提高 Linux 上 socket 性能](https://www.ibm.com/developerworks/cn/linux/l-hisock.html)
-[TCP的滑动窗口与拥塞窗口](https://blog.csdn.net/zhangdaisylove/article/details/47294315)
-[tcp滑动窗口以拥塞窗口和各种缓冲的总结](https://blog.csdn.net/lishanmin11/article/details/77092652?utm_source=blogxgwz1)
+1. [提高 Linux 上 socket 性能](https://www.ibm.com/developerworks/cn/linux/l-hisock.html)
+2. [TCP的滑动窗口与拥塞窗口](https://blog.csdn.net/zhangdaisylove/article/details/47294315)
+3. [tcp滑动窗口以拥塞窗口和各种缓冲的总结](https://blog.csdn.net/lishanmin11/article/details/77092652?utm_source=blogxgwz1)
 
 # Brokers
 一个独立的kafka服务器被称作broker。负责 1) 接手生产者的消息，为消息设置偏移量并提交到磁盘保存；2) 为消费者提供服务
