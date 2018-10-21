@@ -51,3 +51,27 @@ brokers接受字节数组，所以要把发送的对象序列化为字节。
 ![提高 Linux 上 socket 性能](https://www.ibm.com/developerworks/cn/linux/l-hisock.html)
 ![TCP的滑动窗口与拥塞窗口](https://blog.csdn.net/zhangdaisylove/article/details/47294315)
 ![tcp滑动窗口以拥塞窗口和各种缓冲的总结](https://blog.csdn.net/lishanmin11/article/details/77092652?utm_source=blogxgwz1)
+
+# Brokers
+一个独立的kafka服务器被称作broker。负责 1) 接手生产者的消息，为消息设置偏移量并提交到磁盘保存；2) 为消费者提供服务
+一个broker可以轻松处理数千个分区和每秒百万级的消息量
+
+## 集群控制器
+每个集群都有一个broker充当**集群控制器**负责集群的管理，包括分区分配和扩容、监控等等，是由活跃的broker自动选举出来的。
+
+## 消息保留策略
+kafka broker支持按保留时间+保留消息字节数保存磁盘中的消息。当消息数量达到上限，旧消息就会过期并被删除。每个主题可以设置自己的保留策略。
+kafka消息是按分区的日志片段保存的，一个日志片段一个文件，分配在由参数 `log.dirs` 指定的目录中。
+决定一个日志片段文件被关闭（不再写入消息数据）的包含两个参数 `log.segment.bytes` 和 `log.segment.ms`
+
+决定一个主题的消息保留策略的关键参数是：
+- `log.retention.ms`：消息数据可以保留多久，这是通过检查分区日志片段的**最后修改时间**（一般即最后一条消息的时间戳）来实现的。但是使用管理工具移动分区的时候由于会修改文件最后修改时间，所以此时会有些不准确
+- `log.retension.bytes`：**作用在一个分区上**，表示该分区所有已经关闭的日志片段文件的数据总和上限
+注意这两个参数都是作用于日志片段上，而且一个日志片段在**被关闭之前是不会过期的**
+
+## 多数据中心消息复制
+kafka的消息复制机制只能在单个集群内进行，不能在多集群之间进行。
+> 多集群应该是指逻辑上的划分而不是物理上的划分？
+可以使用 **MirrorMaker** 这个工具进行集群间的消息复制，其中内置了一个消费者和一个生产者，负责从一个集群消费消息，并通过
+生产者发送到另一个集群中，整个过程是异步的，所以会存在数据一致性的问题
+使用MirrorMaker可以实现集群间双向复制，实现双活的kafka集群，参考![这篇文章](https://www.altoros.com/blog/multi-cluster-deployment-options-for-apache-kafka-pros-and-cons/)。
