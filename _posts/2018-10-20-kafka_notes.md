@@ -48,9 +48,9 @@ brokers接受字节数组，所以要把发送的对象序列化为字节。
 - `acks == 1`: 生产者等待收到分区首领的响应，如果发生错误，生产者可以重试，但是如果发生首领重新选举且是一个没有收到消息的broker成为新首领，消息还是会丢失。采用同步发送模式，吞吐会比较受影响；采用异步发送模式，延迟问题可以得到缓解，但是还是会受到发送中消息数量的限制（`max.in.flight.requests.per.connection`、`buffer.memory`）
 
 ## 参考文章
-![提高 Linux 上 socket 性能](https://www.ibm.com/developerworks/cn/linux/l-hisock.html)
-![TCP的滑动窗口与拥塞窗口](https://blog.csdn.net/zhangdaisylove/article/details/47294315)
-![tcp滑动窗口以拥塞窗口和各种缓冲的总结](https://blog.csdn.net/lishanmin11/article/details/77092652?utm_source=blogxgwz1)
+[提高 Linux 上 socket 性能](https://www.ibm.com/developerworks/cn/linux/l-hisock.html)
+[TCP的滑动窗口与拥塞窗口](https://blog.csdn.net/zhangdaisylove/article/details/47294315)
+[tcp滑动窗口以拥塞窗口和各种缓冲的总结](https://blog.csdn.net/lishanmin11/article/details/77092652?utm_source=blogxgwz1)
 
 # Brokers
 一个独立的kafka服务器被称作broker。负责 1) 接手生产者的消息，为消息设置偏移量并提交到磁盘保存；2) 为消费者提供服务
@@ -74,4 +74,25 @@ kafka的消息复制机制只能在单个集群内进行，不能在多集群之
 > 多集群应该是指逻辑上的划分而不是物理上的划分？
 可以使用 **MirrorMaker** 这个工具进行集群间的消息复制，其中内置了一个消费者和一个生产者，负责从一个集群消费消息，并通过
 生产者发送到另一个集群中，整个过程是异步的，所以会存在数据一致性的问题
-使用MirrorMaker可以实现集群间双向复制，实现双活的kafka集群，参考![这篇文章](https://www.altoros.com/blog/multi-cluster-deployment-options-for-apache-kafka-pros-and-cons/)。
+使用MirrorMaker可以实现集群间双向复制，实现双活的kafka集群，参考[这篇文章](https://www.altoros.com/blog/multi-cluster-deployment-options-for-apache-kafka-pros-and-cons/)。
+
+## 系统资源使用
+磁盘性能影响生产者，内存影响消费者。
+
+Kafka依赖I/O性能为生产者提供快速的响应，这里主要考虑**脏页**的回写磁盘的影响。通过操作系统参数 `vm.dirty_background_ratio` 和 `vm.dirty_ratio` 来控制脏页刷新的频率，前者是针对后台刷新进程，后者针对内核进程，值单位为系统内存的百分比。调高参数值，降低了脏页刷新的频率，充分利用内核为磁盘提供缓冲的能力，但是也会带来因系统奔溃导致数据丢失的风险。
+此外，禁用文件系统中对文件元数据 atime 的修改也可以提高性能（可以针对挂载点修改 `noatime`），kafka不需要用到文件最后被访问时间。
+
+kafka的jvm本身不需要太多内存，剩余的系统内存可以用作页面缓存。消费者读取的消息往往直接从页面缓存能读到（消费者紧随在生产者后消费数据的场景下），而不用从磁盘上重新读取。
+所以不建议kafka和其他重要的应用程序混合部署，因为这样就要共享页面缓存，最终降低消费的性能。
+
+网络也是限制kafka性能的重要因素，因为给定一个分区，多消费使得消费的网络流量存在放大的情况，而且也会影响集群复制的延迟
+
+
+
+
+
+
+
+
+
+
